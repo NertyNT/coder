@@ -359,3 +359,24 @@ python client_beta1.py D:\\video\\movie.mkv \
 ```bash
 uvicorn server_beta1:app --host 0.0.0.0 --port 8080
 ```
+
+## WinError 2 / "Не удается найти указанный файл"
+
+Это значит, что в PATH нет нужной утилиты (обычно `ssh`, `scp` или `ffprobe`).
+
+### Windows 10/11: поставить OpenSSH Client и ffmpeg
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+winget install -e --id Gyan.FFmpeg
+```
+
+Проверка:
+
+```powershell
+ssh -V
+scp -V
+ffprobe -version
+```
+
+GUI теперь не падает на таком кейсе и показывает понятную ошибку в окне/логах.

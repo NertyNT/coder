@@ -7,6 +7,7 @@ import json
 import queue
 import subprocess
 import threading
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 import sys
@@ -103,6 +104,10 @@ class App:
         self._build_ffmpeg_tab(t_ff)
         self._build_queue_tab(t_queue)
         self._build_logs_tab(t_logs)
+
+
+    def _missing_bins(self, names: list[str]) -> list[str]:
+        return [n for n in names if shutil.which(n) is None]
 
     def _build_job_tab(self, tab) -> None:
         frm = ctk.CTkFrame(tab)
@@ -269,6 +274,11 @@ class App:
         self.queue_list.delete(0, "end")
 
     def test_connection(self) -> None:
+        missing = self._missing_bins(["ssh"])
+        if missing:
+            messagebox.showerror("Missing binary", f"Not found in PATH: {', '.join(missing)}\nInstall OpenSSH Client on Windows.")
+            return
+
         cmd = ["ssh", "-p", self.port.get().strip()]
         if self.ssh_key.get().strip():
             cmd += ["-i", self.ssh_key.get().strip()]
@@ -278,6 +288,11 @@ class App:
         self._run_and_log(cmd, "SSH check")
 
     def start_queue(self) -> None:
+        missing = self._missing_bins(["ssh", "scp", "ffprobe"])
+        if missing:
+            messagebox.showerror("Missing binaries", f"Not found in PATH: {', '.join(missing)}")
+            return
+
         if self.queue_running:
             messagebox.showinfo("Инфо", "Очередь уже выполняется")
             return
@@ -353,7 +368,13 @@ class App:
 
     def _run_and_log(self, cmd: list[str], title: str) -> bool:
         self.log_queue.put(f"\n--- {title} ---\n$ {' '.join(cmd)}\n")
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        except FileNotFoundError as exc:
+            self.log_queue.put(f"❌ {title} failed: {exc}.\n")
+            self.log_queue.put("Install missing tools (ssh/scp/ffmpeg) and restart app.\n")
+            return False
+
         assert proc.stdout is not None
         for line in proc.stdout:
             self.log_queue.put(line)

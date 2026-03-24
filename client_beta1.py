@@ -8,6 +8,7 @@ import json
 import shlex
 import subprocess
 import sys
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,6 +60,12 @@ def probe_stream_maps(input_file: Path) -> tuple[str, list[str], list[str]]:
 
     return video_map, audio_maps, subtitle_maps
 
+
+
+
+def require_binary(name: str) -> None:
+    if shutil.which(name) is None:
+        raise RuntimeError(f"Required binary not found in PATH: {name}")
 
 def run(command: list[str], dry_run: bool = False) -> None:
     printable = " ".join(shlex.quote(x) for x in command)
@@ -183,6 +190,9 @@ def main() -> int:
     scp_base = ["scp", "-P", str(args.port)] + ssh_common
 
     try:
+        require_binary("ssh")
+        require_binary("scp")
+        require_binary("ffmpeg")
         run(ssh_base + [f"mkdir -p {shlex.quote(remote_dir)}"], dry_run=args.dry_run)
         run(scp_base + [str(args.input), f"{login}:{remote_input}"], dry_run=args.dry_run)
         ffmpeg = make_ffmpeg_command(remote_input, remote_output, cfg)
