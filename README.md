@@ -170,3 +170,28 @@ python client_beta1.py D:\\video\\movie.mkv \
   --profile profile.beta1.json \
   --dry-run
 ```
+
+## Beta 1 GUI (modern)
+
+Добавлен `client_gui_beta1.py` с современным тёмным интерфейсом (CustomTkinter):
+- выбор MKV/профиля/папки вывода;
+- блок подключения к серверу (host/user/port/remote base);
+- кнопка **Проверить SSH**;
+- кнопка **Старт кодирования**;
+- live-логи выполнения.
+
+Запуск GUI:
+
+```bash
+pip install -r requirements.txt
+python client_gui_beta1.py
+```
+
+## Авто beta-релиз после изменений
+
+Добавлен workflow `.github/workflows/release-beta-auto.yml`:
+- триггер: каждый push в `main` или `work`;
+- создаёт тег вида `v0.1.0-beta.<run_number>`;
+- публикует GitHub prerelease автоматически.
+
+Для работы нужен встроенный `GITHUB_TOKEN` c `contents: write` (настраивается в repo settings/actions permissions).

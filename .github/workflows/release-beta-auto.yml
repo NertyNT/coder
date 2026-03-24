@@ -1,0 +1,42 @@
+name: Auto Beta Release
+
+on:
+  push:
+    branches:
+      - main
+      - work
+
+permissions:
+  contents: write
+
+jobs:
+  beta-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build beta tag
+        id: vars
+        run: |
+          BASE_VERSION="0.1.0"
+          TAG="v${BASE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        env:
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Auto beta release $TAG"
+          git push origin "$TAG"
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          prerelease: true
+          generate_release_notes: true
