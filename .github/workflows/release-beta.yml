@@ -13,8 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build release notes body
+        run: |
+          {
+            echo "## Что добавлено в этом beta-релизе"
+            echo
+            git log -1 --pretty=format:"- %s" || true
+            echo
+            echo "## Вложенные файлы"
+            echo "- client_beta1.py"
+            echo "- client_gui_beta1.py"
+            echo "- server_beta1.py"
+          } > RELEASE_BODY.md
+
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
-          generate_release_notes: true
+          body_path: RELEASE_BODY.md
+          files: |
+            client_beta1.py
+            client_gui_beta1.py
+            server_beta1.py

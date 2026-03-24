@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import queue
 import subprocess
 import threading
@@ -36,6 +37,7 @@ class QueueJob:
     subtitle_maps: str
     container: str
     extra_ffmpeg: str
+    auto_map_from_probe: bool
 
 
 class App:
@@ -48,7 +50,7 @@ class App:
 
         self.root = ctk.CTk()
         self.root.title("MKV Turbo Python Beta GUI")
-        self.root.geometry("1100x760")
+        self.root.geometry("1120x780")
 
         self.log_queue: queue.Queue[str] = queue.Queue()
         self.jobs: list[QueueJob] = []
@@ -72,6 +74,7 @@ class App:
         self.subtitle_maps = tk.StringVar(value="")
         self.container = tk.StringVar(value="mkv")
         self.extra_ffmpeg = tk.StringVar(value="")
+        self.auto_map_from_probe = tk.BooleanVar(value=True)
 
         self._build_ui()
         self._poll_logs()
@@ -81,7 +84,7 @@ class App:
         wrap.pack(fill="both", expand=True, padx=14, pady=14)
 
         ctk.CTkLabel(wrap, text="MKV Turbo • Python Beta", font=ctk.CTkFont(size=28, weight="bold")).pack(anchor="w", padx=16, pady=(12, 4))
-        ctk.CTkLabel(wrap, text="Очередь задач + все ключевые ffmpeg настройки в UI", text_color=("#888", "#bbb")).pack(anchor="w", padx=16, pady=(0, 10))
+        ctk.CTkLabel(wrap, text="Очередь задач + ffprobe авто-анализ + полные ffmpeg настройки", text_color=("#888", "#bbb")).pack(anchor="w", padx=16, pady=(0, 10))
 
         tabs = ctk.CTkTabview(wrap)
         tabs.pack(fill="both", expand=True, padx=14, pady=10)
@@ -109,6 +112,7 @@ class App:
 
         btns = ctk.CTkFrame(frm, fg_color="transparent")
         btns.grid(row=6, column=0, columnspan=3, sticky="w", padx=12, pady=14)
+        ctk.CTkButton(btns, text="Анализировать ffprobe", command=self.analyze_local_file).pack(side="left", padx=(0, 8))
         ctk.CTkButton(btns, text="Проверить SSH", command=self.test_connection).pack(side="left", padx=(0, 8))
         ctk.CTkButton(btns, text="Добавить в очередь", command=self.add_to_queue, fg_color="#2563eb", hover_color="#1d4ed8").pack(side="left", padx=(0, 8))
         ctk.CTkButton(btns, text="Старт очереди", command=self.start_queue).pack(side="left")
@@ -129,8 +133,9 @@ class App:
         self._entry_row(frm, "Container", self.container, 9)
         self._entry_row(frm, "Extra ffmpeg args", self.extra_ffmpeg, 10)
 
+        ctk.CTkCheckBox(frm, text="Авто-подстановка map из ffprobe перед запуском", variable=self.auto_map_from_probe).grid(row=11, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 8))
         info = "Пример extra args: -movflags +faststart -max_muxing_queue_size 4096"
-        ctk.CTkLabel(frm, text=info, text_color=("#777", "#aaa")).grid(row=11, column=0, columnspan=3, sticky="w", padx=12, pady=(8, 8))
+        ctk.CTkLabel(frm, text=info, text_color=("#777", "#aaa")).grid(row=12, column=0, columnspan=3, sticky="w", padx=12, pady=(8, 8))
 
     def _build_queue_tab(self, tab) -> None:
         frm = ctk.CTkFrame(tab)
@@ -150,12 +155,12 @@ class App:
         self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
 
     def _entry_row(self, parent, label: str, var: tk.StringVar, row: int) -> None:
-        ctk.CTkLabel(parent, text=label, width=180, anchor="w").grid(row=row, column=0, sticky="w", padx=12, pady=8)
+        ctk.CTkLabel(parent, text=label, width=220, anchor="w").grid(row=row, column=0, sticky="w", padx=12, pady=8)
         ctk.CTkEntry(parent, textvariable=var).grid(row=row, column=1, sticky="ew", padx=12, pady=8)
         parent.grid_columnconfigure(1, weight=1)
 
     def _path_row(self, parent, label: str, var: tk.StringVar, callback, row: int) -> None:
-        ctk.CTkLabel(parent, text=label, width=180, anchor="w").grid(row=row, column=0, sticky="w", padx=12, pady=8)
+        ctk.CTkLabel(parent, text=label, width=220, anchor="w").grid(row=row, column=0, sticky="w", padx=12, pady=8)
         ctk.CTkEntry(parent, textvariable=var).grid(row=row, column=1, sticky="ew", padx=12, pady=8)
         ctk.CTkButton(parent, text="Выбрать", width=100, command=callback).grid(row=row, column=2, padx=10, pady=8)
         parent.grid_columnconfigure(1, weight=1)
@@ -169,6 +174,41 @@ class App:
         path = filedialog.askdirectory()
         if path:
             self.output_dir.set(path)
+
+    def analyze_local_file(self) -> None:
+        src = self.input_path.get().strip()
+        if not src:
+            messagebox.showwarning("Нет файла", "Выбери локальный MKV файл")
+            return
+
+        cmd = ["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", src]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+            data = json.loads(out)
+        except Exception as exc:
+            messagebox.showerror("ffprobe", f"Ошибка анализа: {exc}")
+            return
+
+        video = "0:v:0"
+        audios: list[str] = []
+        subs: list[str] = []
+        for s in data.get("streams", []):
+            idx = s.get("index")
+            stype = s.get("codec_type")
+            if idx is None or stype is None:
+                continue
+            m = f"0:{idx}"
+            if stype == "video" and video == "0:v:0":
+                video = m
+            elif stype == "audio":
+                audios.append(m)
+            elif stype == "subtitle":
+                subs.append(m)
+
+        self.video_map.set(video)
+        self.audio_maps.set(",".join(audios) if audios else "0:a?")
+        self.subtitle_maps.set(",".join(subs))
+        self.log_queue.put(f"[FFPROBE] maps: video={video}, audio={self.audio_maps.get()}, subs={self.subtitle_maps.get() or '(none)'}\n")
 
     def _build_job_from_form(self) -> QueueJob:
         return QueueJob(
@@ -189,6 +229,7 @@ class App:
             subtitle_maps=self.subtitle_maps.get().strip(),
             container=self.container.get().strip(),
             extra_ffmpeg=self.extra_ffmpeg.get().strip(),
+            auto_map_from_probe=self.auto_map_from_probe.get(),
         )
 
     def add_to_queue(self) -> None:
@@ -276,6 +317,9 @@ class App:
             "--container",
             job.container,
         ]
+
+        if job.auto_map_from_probe:
+            cmd += ["--auto-map-from-ffprobe"]
 
         if job.extra_ffmpeg:
             for token in job.extra_ffmpeg.split():

@@ -25,6 +25,19 @@ jobs:
           TAG="v${BASE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Create release notes body
+        run: |
+          {
+            echo "## Что добавлено в этом beta-релизе"
+            echo
+            git log -1 --pretty=format:"- %s" || true
+            echo
+            echo "## Вложенные файлы"
+            echo "- client_beta1.py"
+            echo "- client_gui_beta1.py"
+            echo "- server_beta1.py"
+          } > RELEASE_BODY.md
+
       - name: Create and push tag
         env:
           TAG: ${{ steps.vars.outputs.tag }}
@@ -39,4 +52,8 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           prerelease: true
-          generate_release_notes: true
+          body_path: RELEASE_BODY.md
+          files: |
+            client_beta1.py
+            client_gui_beta1.py
+            server_beta1.py

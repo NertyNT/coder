@@ -267,3 +267,60 @@ python client_gui_beta1.py
 ```
 
 Вкладка **FFmpeg** содержит все основные настройки, вкладка **Очередь** — пакетная обработка файлов.
+
+## ffprobe анализ map на локальном ПК
+
+### CLI
+
+Только анализ без отправки на сервер:
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv --analyze-only
+```
+
+Авто-подстановка map из ffprobe перед кодированием:
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --auto-map-from-ffprobe
+```
+
+### GUI
+
+В `client_gui_beta1.py` есть кнопка **Анализировать ffprobe** и чекбокс
+**Авто-подстановка map из ffprobe перед запуском**.
+
+## Server Beta 1 (Python)
+
+Добавлен `server_beta1.py` (FastAPI) с максимально простой установкой.
+
+### Установка
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg python3 python3-pip
+python3 -m pip install -r requirements-server.txt
+```
+
+### Запуск
+
+```bash
+uvicorn server_beta1:app --host 0.0.0.0 --port 8080
+```
+
+### Эндпоинты
+
+- `GET /health`
+- `POST /probe` — ffprobe анализ локального файла на сервере
+- `POST /encode` — запуск ffmpeg с параметрами
+
+## Что в релизе
+
+Beta-release workflow теперь всегда прикладывает:
+- `client_beta1.py`
+- `client_gui_beta1.py`
+- `server_beta1.py`
+
+И добавляет в описание релиза блок "Что добавлено в этом beta-релизе".
