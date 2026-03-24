@@ -9,6 +9,7 @@ import subprocess
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
@@ -24,6 +25,8 @@ class QueueJob:
     host: str
     user: str
     port: str
+    ssh_key: str
+    ssh_options: str
     remote_base: str
     output_dir: str
     video_codec: str
@@ -62,6 +65,8 @@ class App:
         self.user = tk.StringVar()
         self.port = tk.StringVar(value="22")
         self.remote_base = tk.StringVar(value="~/mkv_jobs")
+        self.ssh_key = tk.StringVar(value="")
+        self.ssh_options = tk.StringVar(value="ServerAliveInterval=30,ServerAliveCountMax=6")
 
         self.video_codec = tk.StringVar(value="libx265")
         self.crf = tk.StringVar(value="22")
@@ -109,9 +114,11 @@ class App:
         self._entry_row(frm, "User", self.user, 3)
         self._entry_row(frm, "Port", self.port, 4)
         self._entry_row(frm, "Remote base", self.remote_base, 5)
+        self._path_row(frm, "SSH key (private)", self.ssh_key, self._pick_ssh_key, 6)
+        self._entry_row(frm, "SSH options (csv)", self.ssh_options, 7)
 
         btns = ctk.CTkFrame(frm, fg_color="transparent")
-        btns.grid(row=6, column=0, columnspan=3, sticky="w", padx=12, pady=14)
+        btns.grid(row=8, column=0, columnspan=3, sticky="w", padx=12, pady=14)
         ctk.CTkButton(btns, text="Анализировать ffprobe", command=self.analyze_local_file).pack(side="left", padx=(0, 8))
         ctk.CTkButton(btns, text="Проверить SSH", command=self.test_connection).pack(side="left", padx=(0, 8))
         ctk.CTkButton(btns, text="Добавить в очередь", command=self.add_to_queue, fg_color="#2563eb", hover_color="#1d4ed8").pack(side="left", padx=(0, 8))
@@ -175,6 +182,11 @@ class App:
         if path:
             self.output_dir.set(path)
 
+    def _pick_ssh_key(self) -> None:
+        path = filedialog.askopenfilename(filetypes=[("PEM/KEY", "*.pem *.key"), ("All", "*.*")])
+        if path:
+            self.ssh_key.set(path)
+
     def analyze_local_file(self) -> None:
         src = self.input_path.get().strip()
         if not src:
@@ -217,6 +229,8 @@ class App:
             user=self.user.get().strip(),
             port=self.port.get().strip(),
             remote_base=self.remote_base.get().strip(),
+            ssh_key=self.ssh_key.get().strip(),
+            ssh_options=self.ssh_options.get().strip(),
             output_dir=self.output_dir.get().strip(),
             video_codec=self.video_codec.get().strip(),
             crf=self.crf.get().strip(),
@@ -255,7 +269,12 @@ class App:
         self.queue_list.delete(0, "end")
 
     def test_connection(self) -> None:
-        cmd = ["ssh", "-p", self.port.get().strip(), f"{self.user.get().strip()}@{self.host.get().strip()}", "echo", "OK"]
+        cmd = ["ssh", "-p", self.port.get().strip()]
+        if self.ssh_key.get().strip():
+            cmd += ["-i", self.ssh_key.get().strip()]
+        for opt in [x.strip() for x in self.ssh_options.get().split(",") if x.strip()]:
+            cmd += ["-o", opt]
+        cmd += [f"{self.user.get().strip()}@{self.host.get().strip()}", "echo", "OK"]
         self._run_and_log(cmd, "SSH check")
 
     def start_queue(self) -> None:
@@ -282,9 +301,10 @@ class App:
         self.log_queue.put("[QUEUE] done\n")
 
     def _job_to_cli(self, job: QueueJob) -> list[str]:
+        cli_script = str(Path(__file__).with_name("client_beta1.py"))
         cmd = [
-            "python",
-            "client_beta1.py",
+            sys.executable,
+            cli_script,
             job.input_path,
             "--host",
             job.host,
@@ -294,6 +314,8 @@ class App:
             job.port,
             "--remote-base",
             job.remote_base,
+            "--ssh-key",
+            job.ssh_key,
             "--output-dir",
             job.output_dir,
             "--video-codec",
@@ -317,6 +339,9 @@ class App:
             "--container",
             job.container,
         ]
+
+        for opt in [x.strip() for x in job.ssh_options.split(",") if x.strip()]:
+            cmd += ["--ssh-option", opt]
 
         if job.auto_map_from_probe:
             cmd += ["--auto-map-from-ffprobe"]

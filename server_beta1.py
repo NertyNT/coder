@@ -142,3 +142,8 @@ def encode(payload: EncodeRequest) -> dict:
         "stdout_tail": "\n".join(proc.stdout.splitlines()[-40:]),
         "stderr_tail": "\n".join(proc.stderr.splitlines()[-40:]),
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server_beta1:app", host="0.0.0.0", port=8080)

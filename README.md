@@ -325,3 +325,37 @@ Beta-release workflow теперь всегда прикладывает:
 - `python-beta-files.zip`
 
 И добавляет в описание релиза блок "Что добавлено в этом beta-релизе".
+
+## Важно: SSH key / сертификат и запуск клиентов в одной папке
+
+Чтобы не было ошибки с `--profile` (старый скрипт), GUI теперь запускает CLI
+строго по пути рядом с собой: `client_gui_beta1.py` -> `client_beta1.py`.
+
+### SSH key/cert
+
+В CLI добавлены:
+- `--ssh-key <path_to_private_key>`
+- `--ssh-option <OpenSSH_option>` (можно повторять)
+
+Пример:
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv \
+  --host 192.144.13.118 \
+  --user nertyuwu \
+  --ssh-key C:\\Users\\NertyUwU\\.ssh\\id_ed25519 \
+  --ssh-option StrictHostKeyChecking=accept-new \
+  --ssh-option ServerAliveInterval=30 \
+  --auto-map-from-ffprobe
+```
+
+В GUI добавлены поля `SSH key (private)` и `SSH options (csv)`.
+
+## Server Beta 1 запуск без автозавершения
+
+Теперь `python3 server_beta1.py` поднимает uvicorn автоматически на `:8080`.
+Если хочешь вручную, по-прежнему можно:
+
+```bash
+uvicorn server_beta1:app --host 0.0.0.0 --port 8080
+```

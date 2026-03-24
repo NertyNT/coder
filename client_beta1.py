@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""MKV Turbo Beta 1 Python CLI.
-
-Python-first beta client:
-1) optional local ffprobe analysis,
-2) upload file to VDS via SCP,
-3) run remote ffmpeg with settings from CLI args,
-4) download result back.
-"""
+"""MKV Turbo Beta 1 Python CLI."""
 
 from __future__ import annotations
 
@@ -40,15 +33,7 @@ def split_maps(value: str) -> list[str]:
 
 
 def probe_stream_maps(input_file: Path) -> tuple[str, list[str], list[str]]:
-    cmd = [
-        "ffprobe",
-        "-v",
-        "error",
-        "-print_format",
-        "json",
-        "-show_streams",
-        str(input_file),
-    ]
+    cmd = ["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", str(input_file)]
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
     data = json.loads(result.stdout)
 
@@ -61,13 +46,13 @@ def probe_stream_maps(input_file: Path) -> tuple[str, list[str], list[str]]:
         stype = s.get("codec_type")
         if idx is None or stype is None:
             continue
-        map_str = f"0:{idx}"
+        m = f"0:{idx}"
         if stype == "video" and video_map == "0:v:0":
-            video_map = map_str
+            video_map = m
         elif stype == "audio":
-            audio_maps.append(map_str)
+            audio_maps.append(m)
         elif stype == "subtitle":
-            subtitle_maps.append(map_str)
+            subtitle_maps.append(m)
 
     if not audio_maps:
         audio_maps = ["0:a?"]
@@ -80,81 +65,69 @@ def run(command: list[str], dry_run: bool = False) -> None:
     print(f"$ {printable}")
     if dry_run:
         return
-
     proc = subprocess.run(command, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"Command failed ({proc.returncode}): {printable}")
 
 
 def make_ffmpeg_command(src: str, dst: str, cfg: EncodeConfig) -> str:
-    parts: list[str] = [
-        "ffmpeg",
-        "-y",
-        "-threads",
-        "0",
-        "-i",
-        src,
-        "-map",
-        cfg.video_map,
-    ]
-
+    parts: list[str] = ["ffmpeg", "-y", "-threads", "0", "-i", src, "-map", cfg.video_map]
     for m in cfg.audio_maps:
         parts += ["-map", m]
-
     for m in cfg.subtitle_maps:
         parts += ["-map", m]
-
     parts += [
-        "-c:v",
-        cfg.video_codec,
-        "-preset",
-        cfg.preset,
-        "-crf",
-        str(cfg.crf),
-        "-pix_fmt",
-        cfg.pix_fmt,
-        "-c:a",
-        cfg.audio_codec,
-        "-b:a",
-        cfg.audio_bitrate,
+        "-c:v", cfg.video_codec,
+        "-preset", cfg.preset,
+        "-crf", str(cfg.crf),
+        "-pix_fmt", cfg.pix_fmt,
+        "-c:a", cfg.audio_codec,
+        "-b:a", cfg.audio_bitrate,
     ]
-
     parts += cfg.extra_ffmpeg
     parts += [dst]
-
     return " ".join(shlex.quote(x) for x in parts)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="MKV Turbo Python Beta client")
-    parser.add_argument("input", type=Path, help="Path to input .mkv")
-    parser.add_argument("--host", required=False, help="VDS host")
-    parser.add_argument("--user", required=False, help="SSH user")
-    parser.add_argument("--port", type=int, default=22, help="SSH port")
-    parser.add_argument("--remote-base", default="~/mkv_jobs", help="Remote base directory")
-    parser.add_argument("--output-dir", type=Path, default=Path("./out"), help="Local output directory")
-    parser.add_argument("--dry-run", action="store_true", help="Print commands only")
-    parser.add_argument("--analyze-only", action="store_true", help="Run ffprobe locally and print suggested maps")
-    parser.add_argument("--auto-map-from-ffprobe", action="store_true", help="Override maps using local ffprobe results")
+    p = argparse.ArgumentParser(description="MKV Turbo Python Beta client")
+    p.add_argument("input", type=Path, help="Path to input .mkv")
+    p.add_argument("--host", required=False)
+    p.add_argument("--user", required=False)
+    p.add_argument("--port", type=int, default=22)
+    p.add_argument("--ssh-key", default="", help="Path to SSH private key")
+    p.add_argument("--ssh-option", action="append", default=[], help="Extra -o option for ssh/scp")
+    p.add_argument("--remote-base", default="~/mkv_jobs")
+    p.add_argument("--output-dir", type=Path, default=Path("./out"))
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--analyze-only", action="store_true")
+    p.add_argument("--auto-map-from-ffprobe", action="store_true")
 
-    parser.add_argument("--video-codec", default="libx265")
-    parser.add_argument("--crf", type=int, default=22)
-    parser.add_argument("--preset", default="medium")
-    parser.add_argument("--pix-fmt", default="yuv420p")
-    parser.add_argument("--audio-codec", default="aac")
-    parser.add_argument("--audio-bitrate", default="192k")
-    parser.add_argument("--video-map", default="0:v:0", help="ffmpeg map for video stream")
-    parser.add_argument("--audio-maps", default="0:a?", help="comma-separated ffmpeg audio maps")
-    parser.add_argument("--subtitle-maps", default="", help="comma-separated ffmpeg subtitle maps")
-    parser.add_argument("--container", default="mkv")
-    parser.add_argument("--extra-ffmpeg", action="append", default=[], help="extra ffmpeg arg(s), can be repeated")
+    p.add_argument("--video-codec", default="libx265")
+    p.add_argument("--crf", type=int, default=22)
+    p.add_argument("--preset", default="medium")
+    p.add_argument("--pix-fmt", default="yuv420p")
+    p.add_argument("--audio-codec", default="aac")
+    p.add_argument("--audio-bitrate", default="192k")
+    p.add_argument("--video-map", default="0:v:0")
+    p.add_argument("--audio-maps", default="0:a?")
+    p.add_argument("--subtitle-maps", default="")
+    p.add_argument("--container", default="mkv")
+    p.add_argument("--extra-ffmpeg", action="append", default=[])
+    return p.parse_args()
 
-    return parser.parse_args()
+
+def build_ssh_common(args: argparse.Namespace) -> list[str]:
+    common: list[str] = []
+    if args.ssh_key:
+        common += ["-i", args.ssh_key]
+    for opt in args.ssh_option:
+        common += ["-o", opt]
+    return common
 
 
 def main() -> int:
     args = parse_args()
-
     if not args.input.exists():
         print(f"Input not found: {args.input}", file=sys.stderr)
         return 2
@@ -164,21 +137,19 @@ def main() -> int:
 
     if args.analyze_only or args.auto_map_from_ffprobe:
         try:
-            video_map, audio_maps, subtitle_maps = probe_stream_maps(args.input)
+            v, a, s = probe_stream_maps(args.input)
             print("ffprobe analysis:")
-            print(f"  video_map={video_map}")
-            print(f"  audio_maps={','.join(audio_maps)}")
-            print(f"  subtitle_maps={','.join(subtitle_maps) if subtitle_maps else '(none)'}")
+            print(f"  video_map={v}")
+            print(f"  audio_maps={','.join(a)}")
+            print(f"  subtitle_maps={','.join(s) if s else '(none)'}")
         except Exception as exc:
             print(f"ffprobe analysis failed: {exc}", file=sys.stderr)
             return 1
-
         if args.analyze_only:
             return 0
-
-        args.video_map = video_map
-        args.audio_maps = ",".join(audio_maps)
-        args.subtitle_maps = ",".join(subtitle_maps)
+        args.video_map = v
+        args.audio_maps = ",".join(a)
+        args.subtitle_maps = ",".join(s)
 
     if not args.host or not args.user:
         print("--host and --user are required unless --analyze-only is used", file=sys.stderr)
@@ -199,7 +170,6 @@ def main() -> int:
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-
     job_id = datetime.now(timezone.utc).strftime("job_%Y%m%dT%H%M%SZ")
     remote_dir = f"{args.remote_base.rstrip('/')}/{job_id}"
     remote_input = f"{remote_dir}/{args.input.name}"
@@ -207,16 +177,17 @@ def main() -> int:
     remote_output = f"{remote_dir}/{output_name}"
     local_output = args.output_dir / output_name
 
-    ssh_base = ["ssh", "-p", str(args.port), f"{args.user}@{args.host}"]
+    login = f"{args.user}@{args.host}"
+    ssh_common = build_ssh_common(args)
+    ssh_base = ["ssh", "-p", str(args.port)] + ssh_common + [login]
+    scp_base = ["scp", "-P", str(args.port)] + ssh_common
 
     try:
         run(ssh_base + [f"mkdir -p {shlex.quote(remote_dir)}"], dry_run=args.dry_run)
-        run(["scp", "-P", str(args.port), str(args.input), f"{args.user}@{args.host}:{remote_input}"], dry_run=args.dry_run)
-
+        run(scp_base + [str(args.input), f"{login}:{remote_input}"], dry_run=args.dry_run)
         ffmpeg = make_ffmpeg_command(remote_input, remote_output, cfg)
         run(ssh_base + [ffmpeg], dry_run=args.dry_run)
-
-        run(["scp", "-P", str(args.port), f"{args.user}@{args.host}:{remote_output}", str(local_output)], dry_run=args.dry_run)
+        run(scp_base + [f"{login}:{remote_output}", str(local_output)], dry_run=args.dry_run)
     except RuntimeError as err:
         print(str(err), file=sys.stderr)
         return 1
