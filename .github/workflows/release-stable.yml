@@ -1,0 +1,49 @@
+name: Release Stable (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable semver version without prefix v (example: 1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  stable-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate semver (stable only)
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be stable semver like 1.2.3"
+            exit 1
+          fi
+
+      - name: Create tag if missing
+        run: |
+          VERSION="${{ inputs.version }}"
+          TAG="v${VERSION}"
+          git fetch --tags
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Publish stable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          prerelease: false
+          generate_release_notes: true
