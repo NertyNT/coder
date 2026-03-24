@@ -234,3 +234,36 @@ Dry-run:
   --profile profile.beta1.json \
   --dry-run
 ```
+
+
+## Обновление политики beta
+
+- Начиная с этой итерации, **все beta-фичи делаем только на Python**.
+- Профиль кодирования теперь настраивается прямо в клиенте (CLI/GUI), без обязательного внешнего JSON.
+- В GUI добавлена очередь задач и вынесены ключевые параметры ffmpeg, включая video/audio/subtitle maps и extra args.
+
+### Новый запуск Python CLI (без profile.json)
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --video-codec libx265 \
+  --crf 22 \
+  --preset medium \
+  --audio-codec aac \
+  --audio-bitrate 192k \
+  --audio-maps 0:a:0,0:a:1 \
+  --subtitle-maps 0:s? \
+  --extra-ffmpeg -movflags \
+  --extra-ffmpeg +faststart
+```
+
+### GUI
+
+```bash
+pip install -r requirements.txt
+python client_gui_beta1.py
+```
+
+Вкладка **FFmpeg** содержит все основные настройки, вкладка **Очередь** — пакетная обработка файлов.
