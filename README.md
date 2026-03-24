@@ -195,3 +195,42 @@ python client_gui_beta1.py
 - публикует GitHub prerelease автоматически.
 
 Для работы нужен встроенный `GITHUB_TOKEN` c `contents: write` (настраивается в repo settings/actions permissions).
+
+## C++ версия (full code) + компиляция
+
+Добавлена полноценная C++ реализация CLI: `src/client_beta1.cpp`.
+
+Возможности:
+- аргументы: `input`, `--host`, `--user`, `--profile`, `--port`, `--remote-base`, `--output-dir`, `--dry-run`;
+- загрузка/кодирование/скачивание по SSH/SCP;
+- чтение JSON профиля (`profile.beta1.json`) без внешних библиотек;
+- `ffmpeg -threads 0` на VDS.
+
+### Сборка (Ubuntu / WSL / Linux)
+
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake ffmpeg openssh-client
+cmake -S . -B build
+cmake --build build -j
+```
+
+### Запуск
+
+```bash
+./build/client_beta1_cpp /path/to/movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --profile profile.beta1.json \
+  --output-dir ./out
+```
+
+Dry-run:
+
+```bash
+./build/client_beta1_cpp /path/to/movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --profile profile.beta1.json \
+  --dry-run
+```
