@@ -117,3 +117,56 @@ ffmpeg -y -threads 0 -i input.mkv \
 ## Следующий шаг
 
 Открой `docs/PROJECT_PLAN.md` — там готовый пошаговый план (MVP → production) с задачами для GitHub Projects.
+
+## Beta 1 клиент (Python)
+
+В репозитории добавлен CLI-клиент `client_beta1.py`.
+
+Что делает beta 1:
+1. Отправляет локальный `.mkv` на VDS (SCP).
+2. Запускает `ffmpeg` на VDS с профилем из JSON.
+3. Скачивает готовый файл обратно.
+
+### Команды установки
+
+#### Windows 10 (клиент)
+```powershell
+winget install -e --id Python.Python.3.12
+winget install -e --id Git.Git
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+```
+
+Проверка:
+```powershell
+python --version
+git --version
+ssh -V
+scp -V
+```
+
+#### Ubuntu 22.04 (VDS)
+```bash
+sudo apt update
+sudo apt install -y ffmpeg openssh-server rsync python3 python3-venv python3-pip
+ffmpeg -version
+```
+
+### Быстрый запуск beta 1
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --profile profile.beta1.json \
+  --output-dir .\\out
+```
+
+Тестовый прогон без реального запуска команд:
+
+```bash
+python client_beta1.py D:\\video\\movie.mkv \
+  --host 203.0.113.10 \
+  --user ubuntu \
+  --profile profile.beta1.json \
+  --dry-run
+```

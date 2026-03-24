@@ -1,0 +1,8 @@
+{
+  "video_codec": "libx265",
+  "crf": 22,
+  "preset": "medium",
+  "audio_codec": "aac",
+  "audio_bitrate": "192k",
+  "container": "mkv"
+}
