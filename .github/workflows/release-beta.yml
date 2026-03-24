@@ -1,0 +1,20 @@
+name: Release Beta
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-beta.*'
+
+permissions:
+  contents: write
+
+jobs:
+  beta-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          generate_release_notes: true
