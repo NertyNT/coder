@@ -322,5 +322,6 @@ Beta-release workflow теперь всегда прикладывает:
 - `client_beta1.py`
 - `client_gui_beta1.py`
 - `server_beta1.py`
+- `python-beta-files.zip`
 
 И добавляет в описание релиза блок "Что добавлено в этом beta-релизе".

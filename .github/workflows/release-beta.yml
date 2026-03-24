@@ -16,6 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p dist
+          cp client_beta1.py client_gui_beta1.py server_beta1.py dist/
+          (cd dist && zip -r python-beta-files.zip client_beta1.py client_gui_beta1.py server_beta1.py)
+
       - name: Build release notes body
         run: |
           {
@@ -27,6 +33,7 @@ jobs:
             echo "- client_beta1.py"
             echo "- client_gui_beta1.py"
             echo "- server_beta1.py"
+            echo "- python-beta-files.zip"
           } > RELEASE_BODY.md
 
       - name: Publish prerelease
@@ -35,6 +42,7 @@ jobs:
           prerelease: true
           body_path: RELEASE_BODY.md
           files: |
-            client_beta1.py
-            client_gui_beta1.py
-            server_beta1.py
+            dist/client_beta1.py
+            dist/client_gui_beta1.py
+            dist/server_beta1.py
+            dist/python-beta-files.zip
