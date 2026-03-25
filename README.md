@@ -421,3 +421,10 @@ curl -X POST http://192.144.13.118:8080/probe -H "Content-Type: application/json
 - открой порт `8080` в firewall на VDS;
 - проверь security group/панель провайдера;
 - убедись, что `uvicorn` запущен не только локально и процесс жив.
+
+## Если OpenSSH установлен, но GUI всё равно не видит `ssh`
+
+Новая версия `client_gui_beta1.py` автоматически добавляет
+`C:\\Windows\\System32\\OpenSSH` в PATH внутри процесса.
+
+Также очередь теперь оборачивает фоновые ошибки в безопасный лог и не роняет GUI traceback'ом.

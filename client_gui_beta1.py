@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import subprocess
 import threading
@@ -19,6 +20,17 @@ try:
 except Exception:
     ctk = None
 
+
+
+
+def _extend_windows_path_for_ssh() -> None:
+    if sys.platform != "win32":
+        return
+    openssh_dir = Path(r"C:/Windows/System32/OpenSSH")
+    if openssh_dir.exists():
+        current = os.environ.get("PATH", "")
+        if str(openssh_dir) not in current:
+            os.environ["PATH"] = str(openssh_dir) + os.pathsep + current
 
 def _ensure_customtkinter() -> bool:
     global ctk
@@ -59,6 +71,7 @@ class QueueJob:
 
 class App:
     def __init__(self) -> None:
+        _extend_windows_path_for_ssh()
         if not _ensure_customtkinter():
             raise RuntimeError("customtkinter install failed. Run: pip install customtkinter")
 
@@ -317,16 +330,20 @@ class App:
         threading.Thread(target=self._queue_worker, daemon=True).start()
 
     def _queue_worker(self) -> None:
-        while self.jobs:
-            job = self.jobs.pop(0)
-            self.queue_list.delete(0)
-            cmd = self._job_to_cli(job)
-            ok = self._run_and_log(cmd, f"JOB {Path(job.input_path).name}")
-            if not ok:
-                self.log_queue.put("[QUEUE] stopped because of failure\n")
-                break
-        self.queue_running = False
-        self.log_queue.put("[QUEUE] done\n")
+        try:
+            while self.jobs:
+                job = self.jobs.pop(0)
+                self.queue_list.delete(0)
+                cmd = self._job_to_cli(job)
+                ok = self._run_and_log(cmd, f"JOB {Path(job.input_path).name}")
+                if not ok:
+                    self.log_queue.put("[QUEUE] stopped because of failure\n")
+                    break
+        except Exception as exc:
+            self.log_queue.put(f"[QUEUE] unexpected error: {exc}\n")
+        finally:
+            self.queue_running = False
+            self.log_queue.put("[QUEUE] done\n")
 
     def _job_to_cli(self, job: QueueJob) -> list[str]:
         cli_script = str(Path(__file__).with_name("client_beta1.py"))
@@ -386,6 +403,9 @@ class App:
         except FileNotFoundError as exc:
             self.log_queue.put(f"❌ {title} failed: {exc}.\n")
             self.log_queue.put("Install missing tools (ssh/scp/ffmpeg) and restart app.\n")
+            return False
+        except Exception as exc:
+            self.log_queue.put(f"❌ {title} launch error: {exc}\n")
             return False
 
         assert proc.stdout is not None
