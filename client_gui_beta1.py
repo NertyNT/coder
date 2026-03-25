@@ -20,6 +20,19 @@ except Exception:
     ctk = None
 
 
+def _ensure_customtkinter() -> bool:
+    global ctk
+    if ctk is not None:
+        return True
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "customtkinter>=5.2.2"], check=False)
+        import customtkinter as imported_ctk
+        ctk = imported_ctk
+        return True
+    except Exception:
+        return False
+
+
 @dataclass
 class QueueJob:
     input_path: str
@@ -46,8 +59,8 @@ class QueueJob:
 
 class App:
     def __init__(self) -> None:
-        if ctk is None:
-            raise RuntimeError("customtkinter is not installed. Run: pip install customtkinter")
+        if not _ensure_customtkinter():
+            raise RuntimeError("customtkinter install failed. Run: pip install customtkinter")
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")

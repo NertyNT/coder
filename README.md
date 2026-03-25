@@ -380,3 +380,44 @@ ffprobe -version
 ```
 
 GUI теперь не падает на таком кейсе и показывает понятную ошибку в окне/логах.
+
+## Авто-установка зависимостей при старте клиента
+
+Добавлен `bootstrap_client.py`. Он при запуске:
+1. ставит Python-зависимости из `requirements.txt`;
+2. на Windows пытается установить OpenSSH Client и FFmpeg (через `powershell`/`winget`), если их нет;
+3. запускает `client_gui_beta1.py`.
+
+Запуск:
+
+```bash
+python bootstrap_client.py
+```
+
+## Как подключиться к серверу (который уже поднялся на :8080)
+
+Если у тебя в консоли видно:
+`Uvicorn running on http://0.0.0.0:8080`, значит сервер слушает все интерфейсы.
+
+### Проверка с локальной машины сервера
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+### Проверка с твоего Windows ПК
+
+```powershell
+curl http://192.144.13.118:8080/health
+```
+
+### Пример probe-запроса
+
+```powershell
+curl -X POST http://192.144.13.118:8080/probe -H "Content-Type: application/json" -d '{"input_path":"/path/to/file.mkv"}'
+```
+
+### Важно если не коннектится
+- открой порт `8080` в firewall на VDS;
+- проверь security group/панель провайдера;
+- убедись, что `uvicorn` запущен не только локально и процесс жив.
