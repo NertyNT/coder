@@ -146,4 +146,4 @@ def encode(payload: EncodeRequest) -> dict:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server_beta1:app", host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
